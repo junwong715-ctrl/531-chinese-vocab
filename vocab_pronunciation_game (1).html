@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>認字發音遊戲</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FDF6E3;--card:#fff;--yellow:#FAC775;--yd:#E8A840;
+  --blue:#5BACD8;--bl:#E6F4FB;--bd:#1A6A9A;
+  --green:#5BAA6A;--gl:#E4F5E7;
+  --purple:#9B85D4;--prl:#EDE8FA;--prd:#5A3BA8;
+  --pink:#F0799A;--pl:#FDE8EE;
+  --red:#E05C5C;--rl:#FDECEC;
+  --text:#3A2E1E;--muted:#8A7C6A;--border:#E8DCC8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ── HEADER ── */
+header{background:var(--yellow);padding:14px 20px 12px;text-align:center;position:relative}
+header h1{font-size:22px;font-weight:900}
+header p{font-size:12px;color:#6A5020;margin-top:2px;font-weight:600}
+.deco{position:absolute;top:12px;font-size:24px}
+.dl{left:14px}.dr{right:14px}
+
+/* ── SCORE / PROGRESS BAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#f5e8c4;border-bottom:2px solid var(--yd)}
+.score-lbl{font-size:13px;font-weight:800;color:var(--text)}
+.progress-track{flex:1;height:8px;background:var(--border);border-radius:4px;margin:0 12px;overflow:hidden}
+.progress-fill{height:100%;background:var(--yd);border-radius:4px;transition:width .4s}
+.word-count{font-size:13px;font-weight:800;color:var(--muted)}
+
+/* ── MAIN ARENA ── */
+#arena{min-height:calc(100vh - 120px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px;position:relative}
+
+/* ── START SCREEN ── */
+.start-screen{text-align:center;padding:20px}
+.start-screen h2{font-size:24px;font-weight:900;margin-bottom:8px}
+.start-screen p{font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.6}
+.btn-start{padding:16px 40px;border-radius:20px;font-family:inherit;font-size:18px;font-weight:900;background:var(--yellow);color:var(--text);border:none;box-shadow:0 4px 0 var(--yd);cursor:pointer;transition:all .15s}
+.btn-start:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--yd)}
+
+/* ── BUBBLE ── */
+.bubble-wrap{display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;max-width:400px}
+
+.bubble-outer{
+  position:relative;width:200px;height:200px;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* SVG ring timer */
+.timer-ring{position:absolute;top:0;left:0;width:200px;height:200px;transform:rotate(-90deg)}
+.timer-bg{fill:none;stroke:#E8DCC8;stroke-width:8}
+.timer-arc{fill:none;stroke:var(--blue);stroke-width:8;stroke-linecap:round;
+  stroke-dasharray:565;stroke-dashoffset:0;transition:stroke-dashoffset .1s linear,stroke .3s}
+.timer-arc.urgent{stroke:var(--red)}
+
+/* Bubble itself */
+.bubble{
+  width:170px;height:170px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #e8f6ff 0%, #b8e0f7 40%, #7ec8e3 100%);
+  border:3px solid rgba(255,255,255,0.8);
+  box-shadow:0 8px 32px rgba(91,172,216,0.35), inset 0 -4px 12px rgba(0,100,150,0.15);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;cursor:pointer;transition:transform .2s;
+  position:relative;overflow:hidden;
+}
+.bubble::before{
+  content:'';position:absolute;top:18px;left:28px;
+  width:36px;height:20px;
+  background:rgba(255,255,255,0.5);border-radius:50%;
+  transform:rotate(-30deg);
+}
+.bubble-char{font-size:44px;font-weight:900;color:#1A5A8A;text-shadow:0 2px 4px rgba(0,0,0,0.1)}
+.bubble-jyut{font-size:13px;font-weight:800;color:var(--bd);letter-spacing:0.5px;display:none}
+.bubble-jyut.show{display:block}
+.bubble.pop{animation:popAnim .4s ease-out forwards}
+@keyframes popAnim{
+  0%{transform:scale(1);opacity:1}
+  40%{transform:scale(1.3);opacity:0.8}
+  100%{transform:scale(0);opacity:0}
+}
+
+/* timer digit */
+.timer-num{font-size:16px;font-weight:900;color:var(--bd);position:absolute;top:6px;right:6px;background:var(--bl);border-radius:10px;padding:2px 10px;border:1.5px solid var(--blue);z-index:10}
+.timer-num.urgent{color:var(--red);background:var(--rl);border-color:var(--red)}
+
+/* ── MIC BUTTON ── */
+.mic-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:24px}
+.mic-btn{
+  width:72px;height:72px;border-radius:50%;
+  background:var(--green);border:none;
+  font-size:30px;cursor:pointer;
+  box-shadow:0 4px 0 #3A8A4A;transition:all .15s;
+  display:flex;align-items:center;justify-content:center;
+}
+.mic-btn:hover{transform:translateY(-2px);box-shadow:0 6px 0 #3A8A4A}
+.mic-btn.listening{background:var(--red);box-shadow:0 4px 0 #A02020;animation:micPulse .6s infinite alternate}
+.mic-btn.disabled{background:#ccc;box-shadow:none;cursor:default}
+@keyframes micPulse{from{transform:scale(1)}to{transform:scale(1.1)}}
+.mic-label{font-size:13px;font-weight:700;color:var(--muted)}
+
+/* result chip */
+.result-chip{font-size:14px;font-weight:800;padding:6px 16px;border-radius:16px;display:none}
+.result-chip.show{display:block}
+.result-chip.ok{background:var(--gl);color:#1A5A28}
+.result-chip.ng{background:var(--rl);color:#A02020}
+
+/* heard text */
+.heard-text{font-size:12px;color:var(--muted);font-weight:600;min-height:18px;text-align:center}
+
+/* ── MCQ PANEL ── */
+.mcq-panel{width:100%;max-width:420px;display:none;flex-direction:column;align-items:center}
+.mcq-panel.show{display:flex}
+.mcq-title{font-size:15px;font-weight:800;text-align:center;margin-bottom:12px;color:var(--text)}
+.mcq-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mcq-btn{
+  padding:20px 10px;border-radius:16px;border:2px solid var(--border);
+  background:var(--card);cursor:pointer;font-family:inherit;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  transition:all .15s;min-height:90px;
+}
+.mcq-btn:hover:not(:disabled){transform:scale(1.03);border-color:var(--yellow);background:#fffbf0}
+.mcq-en{font-size:14px;font-weight:700;color:var(--bd);text-align:center}
+.mcq-ja{font-size:13px;font-weight:600;color:#2A6A38;text-align:center}
+.mcq-btn.correct{background:var(--gl);border-color:var(--green)}
+.mcq-btn.correct .mcq-zh{color:#1A5A28}
+.mcq-btn.wrong{background:var(--rl);border-color:var(--red)}
+.mcq-btn.wrong .mcq-zh{color:var(--red)}
+
+/* ── NEXT BTN ── */
+.btn-next{
+  margin-top:16px;padding:12px 32px;border-radius:16px;
+  font-family:inherit;font-size:16px;font-weight:900;
+  background:var(--yellow);color:var(--text);border:none;
+  box-shadow:0 3px 0 var(--yd);cursor:pointer;display:none;
+  transition:all .15s;
+}
+.btn-next.show{display:block}
+.btn-next:hover{transform:translateY(-1px);box-shadow:0 5px 0 var(--yd)}
+
+/* ── FEEDBACK MSG ── */
+.fb-msg{font-size:14px;font-weight:800;text-align:center;min-height:20px;margin-top:4px}
+.fb-msg.ok{color:#1A5A28}.fb-msg.ng{color:var(--red)}
+
+/* ── SCORE SCREEN ── */
+.score-screen{text-align:center;padding:40px 20px;display:none}
+.score-screen.show{display:block}
+.score-cake{font-size:72px;margin-bottom:12px}
+.score-big{font-size:52px;font-weight:900;color:var(--yd)}
+.score-sub{font-size:16px;font-weight:800;margin:8px 0 4px}
+.score-sub2{font-size:13px;color:var(--muted);margin-bottom:24px}
+.btn-restart{padding:14px 36px;border-radius:18px;font-family:inherit;font-size:18px;font-weight:900;background:var(--yellow);color:var(--text);border:none;box-shadow:0 4px 0 var(--yd);cursor:pointer}
+.btn-restart:hover{transform:translateY(-2px)}
+
+ruby{ruby-align:center}
+rt{font-size:9px;color:#2A6A38;font-weight:500}
+</style>
+</head>
+<body>
+<header>
+  <span class="deco dl">🗣️</span>
+  <h1>認字發音遊戲</h1>
+  <p>Vocabulary Pronunciation Game</p>
+  <span class="deco dr">🌟</span>
+</header>
+
+<div class="topbar">
+  <span class="score-lbl">⭐ <span id="score-val">0</span></span>
+  <div class="progress-track"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+  <span class="word-count" id="word-count">0 / 32</span>
+</div>
+
+<div id="arena">
+
+  <!-- START -->
+  <div class="start-screen" id="start-screen">
+    <div style="font-size:64px;margin-bottom:12px">🫧</div>
+    <h2>認字發音遊戲</h2>
+    <p>每個生字會以氣泡出現<br>在10秒內說出粵語發音<br>然後選出正確的意思！</p>
+    <button class="btn-start" onclick="startGame()">開始遊戲 Start!</button>
+    <div style="margin-top:16px;font-size:12px;color:var(--muted)">⚠️ 請允許麥克風權限 Please allow microphone access</div>
+  </div>
+
+  <!-- GAME -->
+  <div id="game-area" style="display:none;width:100%;max-width:420px;display:none;flex-direction:column;align-items:center;gap:20px">
+
+    <!-- Bubble + timer -->
+    <div class="bubble-wrap" id="bubble-wrap">
+      <div class="bubble-outer" id="bubble-outer">
+        <svg class="timer-ring" viewBox="0 0 200 200">
+          <circle class="timer-bg" cx="100" cy="100" r="90"/>
+          <circle class="timer-arc" id="timer-arc" cx="100" cy="100" r="90"/>
+        </svg>
+        <div class="bubble" id="bubble">
+          <div class="bubble-jyut" id="bubble-jyut"></div>
+          <div class="bubble-char" id="bubble-char">？</div>
+        </div>
+        <div class="timer-num" id="timer-num">10</div>
+      </div>
+
+      <!-- Mic -->
+      <div class="mic-wrap">
+        <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+        <div class="mic-label" id="mic-label">點擊說出發音 Tap to speak</div>
+        <div class="heard-text" id="heard-text"></div>
+        <div class="result-chip" id="result-chip"></div>
+      </div>
+
+      <div class="fb-msg" id="fb-msg"></div>
+    </div>
+
+    <!-- MCQ -->
+    <div class="mcq-panel" id="mcq-panel">
+      <div style="display:flex;align-items:center;justify-content:center;margin-bottom:10px">
+        <div id="mcq-word-bubble" style="
+          width:90px;height:90px;border-radius:50%;
+          background:radial-gradient(circle at 35% 35%,#e8f6ff 0%,#b8e0f7 40%,#7ec8e3 100%);
+          border:3px solid rgba(255,255,255,0.8);
+          box-shadow:0 6px 20px rgba(91,172,216,0.35);
+          display:flex;align-items:center;justify-content:center;
+          font-size:26px;font-weight:900;color:#1A5A8A;
+        "></div>
+      </div>
+      <div class="mcq-title" id="mcq-title">選出正確的意思 Choose the correct meaning</div>
+      <div class="mcq-grid" id="mcq-grid"></div>
+      <div class="fb-msg" id="fb-msg2" style="margin-top:10px"></div>
+      <button class="btn-next" id="btn-next" onclick="nextWord()" style="margin-top:10px">下一個 Next →</button>
+    </div>
+  </div>
+
+  <!-- SCORE -->
+  <div class="score-screen" id="score-screen">
+    <div class="score-cake">🎉</div>
+    <div class="score-big" id="final-score"></div>
+    <div class="score-sub" id="final-msg"></div>
+    <div class="score-sub2" id="final-msg2"></div>
+    <button class="btn-restart" onclick="restartGame()">再玩一次 Play Again!</button>
+  </div>
+
+</div><!-- /arena -->
+
+<script>
+var VOCAB=[
+  {zh:"杯子",jyut:"bui1 zi2",en:"cup",ja:"コップ"},
+  {zh:"玩具",jyut:"waan6 geoi6",en:"toy",ja:"<ruby>玩具<rt>おもちゃ</rt></ruby>"},
+  {zh:"衣服",jyut:"ji1 fuk6",en:"clothes",ja:"<ruby>服<rt>ふく</rt></ruby>"},
+  {zh:"牙刷",jyut:"ngaa4 caat3",en:"toothbrush",ja:"<ruby>歯<rt>は</rt></ruby>ブラシ"},
+  {zh:"溫暖",jyut:"wan1 nyun5",en:"warm",ja:"<ruby>温<rt>あたた</rt></ruby>かい"},
+  {zh:"快樂",jyut:"faai3 lok6",en:"happy / joyful",ja:"<ruby>楽<rt>たの</rt></ruby>しい"},
+  {zh:"回家",jyut:"wui4 gaa1",en:"go home",ja:"<ruby>家<rt>いえ</rt></ruby>に<ruby>帰<rt>かえ</rt></ruby>る"},
+  {zh:"草地",jyut:"cou2 dei6",en:"grass / lawn",ja:"<ruby>草<rt>くさ</rt></ruby><ruby>地<rt>ち</rt></ruby>"},
+  {zh:"球門",jyut:"kau4 mun4",en:"goal (sports)",ja:"ゴール"},
+  {zh:"遊戲",jyut:"jau4 hei3",en:"game / play",ja:"<ruby>遊<rt>あそ</rt></ruby>び"},
+  {zh:"綠色的",jyut:"luk6 sik1 dik1",en:"green",ja:"<ruby>緑<rt>みどり</rt></ruby>の"},
+  {zh:"白色的",jyut:"baak6 sik1 dik1",en:"white",ja:"<ruby>白<rt>しろ</rt></ruby>い"},
+  {zh:"校園",jyut:"haau6 jyun4",en:"school campus",ja:"<ruby>校<rt>こう</rt></ruby><ruby>園<rt>えん</rt></ruby>"},
+  {zh:"足球場",jyut:"zuk1 kau4 coeng4",en:"football pitch",ja:"サッカー<ruby>場<rt>じょう</rt></ruby>"},
+  {zh:"體育課",jyut:"tai2 juk6 fo3",en:"PE class",ja:"<ruby>体育<rt>たいいく</rt></ruby>の<ruby>授業<rt>じゅぎょう</rt></ruby>"},
+  {zh:"同學",jyut:"tung4 hok6",en:"classmate",ja:"<ruby>同<rt>どう</rt></ruby><ruby>級生<rt>きゅうせい</rt></ruby>"},
+  {zh:"非常",jyut:"fei1 soeng4",en:"very / extremely",ja:"とても"},
+  {zh:"喜愛",jyut:"hei2 oi3",en:"to love / like",ja:"<ruby>大好<rt>だいす</rt></ruby>き"},
+  {zh:"因為",jyut:"jan1 wai6",en:"because",ja:"なぜなら"},
+  {zh:"可以",jyut:"ho2 ji5",en:"can / may",ja:"できる"},
+  {zh:"圖書館",jyut:"tou4 syu1 gun2",en:"library",ja:"<ruby>図書館<rt>としょかん</rt></ruby>"},
+  {zh:"蛋糕",jyut:"daan6 gou1",en:"cake",ja:"ケーキ"},
+  {zh:"禮物",jyut:"lai5 mat6",en:"gift / present",ja:"プレゼント"},
+  {zh:"驚喜",jyut:"ging1 hei2",en:"surprise",ja:"サプライズ"},
+  {zh:"開心",jyut:"hoi1 sam1",en:"happy",ja:"<ruby>嬉<rt>うれ</rt></ruby>しい"},
+  {zh:"高興",jyut:"gou1 hing3",en:"glad / pleased",ja:"<ruby>嬉<rt>うれ</rt></ruby>しい"},
+  {zh:"哪裏",jyut:"naa5 leoi5",en:"where (question)",ja:"どこ"},
+  {zh:"那裏",jyut:"go2 dou6",en:"there / that place",ja:"そこ"},
+  {zh:"美味",jyut:"mei5 mei6",en:"delicious",ja:"<ruby>美味<rt>おい</rt></ruby>しい"},
+  {zh:"食物",jyut:"sik6 mat6",en:"food",ja:"<ruby>食<rt>た</rt></ruby>べもの"},
+  {zh:"悄悄地",jyut:"ciu2 ciu2 dei6",en:"quietly / secretly",ja:"こっそり"},
+  {zh:"熱鬧",jyut:"jit6 naau6",en:"lively / bustling",ja:"<ruby>賑<rt>にぎ</rt></ruby>やか"},
+  {zh:"謝謝",jyut:"ze6 ze6",en:"thank you",ja:"ありがとう"},
+  {zh:"和",jyut:"wo4",en:"and / with",ja:"と"},
+  {zh:"踢",jyut:"tek3",en:"to kick",ja:"<ruby>蹴<rt>け</rt></ruby>る"},
+  {zh:"一起",jyut:"jat1 hei2",en:"together",ja:"いっしょに"}
+];
+
+var order=[], curIdx=0, score=0, timerInterval=null, timeLeft=10;
+var recognition=null, isListening=false, attempts=0;
+var mcqAnswered=false;
+var micStream=null; // persistent mic permission
+
+/* ── SHUFFLE ── */
+function shuffle(a){
+  for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
+  return a;
+}
+
+/* ── START ── */
+function startGame(){
+  order=shuffle(VOCAB.map(function(_,i){return i;}));
+  curIdx=0; score=0;
+  document.getElementById('score-val').textContent='0';
+  updateProgress();
+  document.getElementById('start-screen').style.display='none';
+  document.getElementById('score-screen').classList.remove('show');
+  var ga=document.getElementById('game-area');
+  ga.style.display='flex';
+  // Init recognition once — reused for every word
+  recognition=initRecognition();
+  if(!recognition){
+    document.getElementById('heard-text').textContent='此瀏覽器不支援語音識別';
+  }
+  showWord();
+}
+
+/* ── PROGRESS ── */
+function updateProgress(){
+  var pct=Math.round(curIdx/VOCAB.length*100);
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('word-count').textContent=curIdx+' / '+VOCAB.length;
+}
+
+/* ── SHOW WORD ── */
+function showWord(){
+  var w=VOCAB[order[curIdx]];
+  attempts=0; mcqAnswered=false;
+
+  // Reset bubble
+  var bubble=document.getElementById('bubble');
+  bubble.className='bubble';
+  document.getElementById('bubble-char').textContent=w.zh;
+  document.getElementById('bubble-jyut').textContent=w.jyut;
+  document.getElementById('bubble-jyut').classList.remove('show');
+
+  // Reset UI
+  document.getElementById('mcq-panel').classList.remove('show');
+  document.getElementById('btn-next').classList.remove('show');
+  document.getElementById('result-chip').className='result-chip';
+  document.getElementById('heard-text').textContent='';
+  document.getElementById('fb-msg').textContent='';
+  document.getElementById('fb-msg').className='fb-msg';
+  document.getElementById('mic-btn').className='mic-btn';
+  document.getElementById('mic-label').textContent='點擊說出發音 Tap to speak';
+
+  // Start timer
+  startTimer();
+}
+
+/* ── TIMER ── */
+function startTimer(){
+  timeLeft=10;
+  updateTimerDisplay();
+  clearInterval(timerInterval);
+  timerInterval=setInterval(function(){
+    timeLeft-=0.1;
+    if(timeLeft<=0){timeLeft=0;updateTimerDisplay();clearInterval(timerInterval);onTimeUp();}
+    else updateTimerDisplay();
+  },100);
+}
+
+function updateTimerDisplay(){
+  var arc=document.getElementById('timer-arc');
+  var num=document.getElementById('timer-num');
+  var pct=timeLeft/10;
+  var circ=2*Math.PI*90; // 565.5
+  arc.style.strokeDashoffset=(circ*(1-pct)).toFixed(1);
+  var disp=Math.ceil(timeLeft);
+  num.textContent=disp;
+  if(timeLeft<=3){arc.classList.add('urgent');num.classList.add('urgent');}
+  else{arc.classList.remove('urgent');num.classList.remove('urgent');}
+}
+
+function onTimeUp(){
+  stopMic();
+  if(!mcqAnswered){
+    var w=VOCAB[order[curIdx]];
+    speakWord(w.zh); // auto-play pronunciation on timeout
+    attempts++;
+    if(attempts===1){
+      document.getElementById('bubble-jyut').classList.add('show');
+      document.getElementById('fb-msg').textContent='再試一次！Look at the jyutping and try again!';
+      document.getElementById('fb-msg').className='fb-msg ng';
+      // slight delay before restarting timer so TTS can play
+      setTimeout(startTimer, 1200);
+    } else {
+      // After 2nd timeout, show MCQ
+      setTimeout(showMCQ, 1200);
+    }
+  }
+}
+
+/* ── SPEAK WORD (TTS) ── */
+function speakWord(zh){
+  if(!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  var u=new SpeechSynthesisUtterance(zh);
+  u.rate=0.85;
+  // Pick best available Chinese voice (zh-HK preferred, fallback zh-TW then any zh)
+  var voices=window.speechSynthesis.getVoices();
+  var pick=null;
+  if(voices.length){
+    pick=voices.find(function(v){return v.lang==='zh-HK';})
+      ||voices.find(function(v){return v.lang==='zh-TW';})
+      ||voices.find(function(v){return v.lang&&v.lang.startsWith('zh');})
+      ||null;
+  }
+  if(pick){u.voice=pick;u.lang=pick.lang;}
+  else{u.lang='zh-HK';}
+  window.speechSynthesis.speak(u);
+}
+// Pre-load voices (needed on some browsers)
+if(window.speechSynthesis && window.speechSynthesis.onvoiceschanged!==undefined){
+  window.speechSynthesis.onvoiceschanged=function(){window.speechSynthesis.getVoices();};
+}
+
+/* ── MIC ── */
+function toggleMic(){
+  if(isListening){stopMic();return;}
+  startMic();
+}
+
+function initRecognition(){
+  var SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechRecognition) return null;
+  var r=new SpeechRecognition();
+  r.lang='zh-HK';
+  r.interimResults=true;
+  r.maxAlternatives=5;
+  r.continuous=false;
+  r.onresult=function(e){
+    var results=[];
+    for(var i=0;i<e.results.length;i++){
+      for(var j=0;j<e.results[i].length;j++){
+        results.push(e.results[i][j].transcript.trim());
+      }
+    }
+    if(e.results[e.results.length-1].isFinal){
+      document.getElementById('heard-text').textContent='聽到：'+results[0];
+      checkPronunciation(results);
+    }
+  };
+  r.onerror=function(e){
+    isListening=false;
+    setMicIdle();
+    if(e.error==='no-speech') document.getElementById('heard-text').textContent='未聽到聲音，請再試';
+  };
+  r.onend=function(){
+    isListening=false;
+    setMicIdle();
+  };
+  return r;
+}
+
+function setMicIdle(){
+  document.getElementById('mic-btn').className='mic-btn';
+  document.getElementById('mic-label').textContent='點擊說出發音 Tap to speak';
+}
+
+function startMic(){
+  if(!recognition){
+    document.getElementById('heard-text').textContent='此瀏覽器不支援語音識別';
+    return;
+  }
+  if(isListening) return;
+  isListening=true;
+  document.getElementById('mic-btn').className='mic-btn listening';
+  document.getElementById('mic-label').textContent='聆聽中… Listening…';
+  try{ recognition.start(); }
+  catch(e){ isListening=false; setMicIdle(); }
+}
+
+function stopMic(){
+  if(recognition && isListening){try{recognition.stop();}catch(e){}}
+  isListening=false;
+  setMicIdle();
+}
+
+/* ── CHECK PRONUNCIATION ── */
+function checkPronunciation(results){
+  var w=VOCAB[order[curIdx]];
+  // Check if any result contains the Chinese word
+  var correct=results.some(function(r){
+    return r.replace(/\s/g,'').indexOf(w.zh.replace(/\s/g,''))>=0;
+  });
+  var chip=document.getElementById('result-chip');
+  if(correct){
+    clearInterval(timerInterval);
+    stopMic();
+    chip.className='result-chip show ok';
+    chip.textContent='✓ 發音正確！Correct!';
+    document.getElementById('fb-msg').textContent='';
+    // Speak word then pop bubble
+    speakWord(w.zh);
+    setTimeout(function(){
+      document.getElementById('bubble').classList.add('pop');
+      setTimeout(showMCQ, 400);
+    }, 900);
+  } else {
+    chip.className='result-chip show ng';
+    chip.textContent='✗ 再試一次 Try again';
+    // Show jyut hint after first wrong
+    document.getElementById('bubble-jyut').classList.add('show');
+  }
+}
+
+/* ── MCQ ── */
+function showMCQ(){
+  stopMic();
+  clearInterval(timerInterval);
+  // Hide bubble, show MCQ panel in its place
+  document.getElementById('bubble-wrap').style.display='none';
+  document.getElementById('btn-next').classList.remove('show');
+
+  var w=VOCAB[order[curIdx]];
+  var others=VOCAB.filter(function(_,i){return order[curIdx]!==i;});
+  shuffle(others);
+  var distractors=others.slice(0,3);
+  var options=shuffle([w].concat(distractors));
+
+  window._mcqOptions=options;
+  window._mcqCorrect=w.zh;
+  var grid=document.getElementById('mcq-grid');
+  grid.innerHTML=options.map(function(opt,i){
+    return '<button class="mcq-btn" id="mcq'+i+'" onclick="pickMCQ('+i+')">'
+      +'<span class="mcq-en">'+opt.en+'</span>'
+      +'<span class="mcq-ja">'+opt.ja+'</span>'
+      +'</button>';
+  }).join('');
+
+  document.getElementById('mcq-title').textContent='「'+w.zh+'」是什麼意思？ What does it mean?';
+  document.getElementById('mcq-word-bubble').textContent=w.zh;
+  document.getElementById('mcq-panel').classList.add('show');
+}
+
+function pickMCQ(i){
+  if(mcqAnswered)return;
+  mcqAnswered=true;
+  var picked=window._mcqOptions[i].zh;
+  var correct=window._mcqCorrect;
+  var btns=document.querySelectorAll('.mcq-btn');
+  btns.forEach(function(b){b.disabled=true;});
+  var btn=document.getElementById('mcq'+i);
+  if(picked===correct){
+    btn.classList.add('correct');
+    score++;
+    document.getElementById('score-val').textContent=score;
+    document.getElementById('fb-msg2').textContent='🎉 答對了！Correct!';
+    document.getElementById('fb-msg2').className='fb-msg ok';
+  } else {
+    btn.classList.add('wrong');
+    // highlight correct answer
+    window._mcqOptions.forEach(function(opt,j){
+      if(opt.zh===correct) document.getElementById('mcq'+j).classList.add('correct');
+    });
+    document.getElementById('fb-msg2').textContent='✗ 答錯了！Try the next one!';
+    document.getElementById('fb-msg2').className='fb-msg ng';
+  }
+  document.getElementById('btn-next').classList.add('show');
+}
+
+/* ── NEXT ── */
+function nextWord(){
+  curIdx++;
+  updateProgress();
+  if(curIdx>=VOCAB.length){showFinalScore();return;}
+  document.getElementById('bubble-wrap').style.display='';
+  document.getElementById('mcq-panel').classList.remove('show');
+  document.getElementById('bubble-wrap').style.opacity='1';
+  document.getElementById('bubble-wrap').style.pointerEvents='';
+  document.getElementById('fb-msg2').textContent='';
+  document.getElementById('fb-msg2').className='fb-msg';
+  showWord();
+}
+
+/* ── FINAL SCORE ── */
+function showFinalScore(){
+  document.getElementById('game-area').style.display='none';
+  var sc=document.getElementById('score-screen');
+  sc.classList.add('show');
+  var pct=Math.round(score/VOCAB.length*100);
+  document.getElementById('final-score').textContent=score+' / '+VOCAB.length;
+  var msg,msg2;
+  if(pct===100){msg='全對！你真的很厲害！🏆';msg2='Perfect score! Outstanding!';}
+  else if(pct>=80){msg='做得非常好！';msg2='Great job! Well done!';}
+  else if(pct>=60){msg='繼續努力！';msg2='Keep practising!';}
+  else{msg='加油！多練習！';msg2='Practice makes perfect!';}
+  document.getElementById('final-msg').textContent=msg;
+  document.getElementById('final-msg2').textContent=msg2;
+}
+
+function restartGame(){
+  document.getElementById('score-screen').classList.remove('show');
+  document.getElementById('game-area').style.display='none';
+  document.getElementById('start-screen').style.display='block';
+}
+</script>
+</body>
+</html>
